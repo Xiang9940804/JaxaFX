@@ -1,0 +1,13 @@
+.menu-item {
+    -fx-background-color: #D8BFD8 !important;
+    -fx-text-fill: white !important;
+    -fx-padding: 8px; /* 內距 */
+    -fx-border-insets: 0px; /* 邊框內距 */
+    -fx-background-insets: 2px; /* 背景內距 */
+    -fx-background-radius: 2px; /* 圆角半径 */
+    -fx-font-size: 14px; /* 字體大小 */
+}
+
+.menu-item:hover {
+    -fx-background-color: #B0C4DE !important;
+}
