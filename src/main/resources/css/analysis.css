@@ -36,3 +36,29 @@
 .default-color0.chart-pie {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 10, 0, 0, 0); /* 设置阴影效果 */
 }
+
+/* 表格的標題 */
+.table-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 5px;
+    -fx-background-color: #f0f0f0;
+}
+
+/* 表格的表頭 */
+.column-header {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-background-color: #e0e0e0;
+}
+
+/* 鼠標懸停在行上時的效果 */
+.table-row-cell:hover {
+    -fx-background-color: #f0f0f0;
+}
+
+/* 選中行時的效果 */
+.table-row-cell:selected {
+    -fx-background-color: #EAC100;
+}
+

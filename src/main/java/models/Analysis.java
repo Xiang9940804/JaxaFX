@@ -22,13 +22,19 @@ import javafx.geometry.Pos;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.DateCell;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
@@ -310,6 +316,34 @@ public class Analysis extends Application {
         updatePieChartData(chart, salesDataWithName);
     }
 
+    private void createSalesRankingTable(TableView<Map.Entry<String, Integer>> tableView, List<Map.Entry<String, Integer>> salesData) {
+        // 创建表格
+        TableColumn<Map.Entry<String, Integer>, String> productColumn = new TableColumn<>("產品名稱");
+        productColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getKey()));
+
+        TableColumn<Map.Entry<String, Integer>, Integer> quantityColumn = new TableColumn<>("銷售數量");
+        quantityColumn.setCellValueFactory(data -> new SimpleIntegerProperty(data.getValue().getValue()).asObject());
+
+        tableView.getColumns().add(productColumn);
+        tableView.getColumns().add(quantityColumn);
+
+        // 設置列寬度自適應內容
+        productColumn.setPrefWidth(100);
+        quantityColumn.setPrefWidth(50);
+
+        // 將數據添加到表格
+        ObservableList<Map.Entry<String, Integer>> tableData = FXCollections.observableArrayList(salesData);
+        tableView.setItems(tableData);
+
+        // 計算表格高度
+        double rowHeight = 25; // 每行的高度
+        double headerHeight = 28; // 表頭的高度
+        tableView.setPrefHeight(headerHeight + (tableData.size() * rowHeight));
+
+        // 禁用空白列
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+    }
+
     private BorderPane createButtonBox(PieChart chart, Stage stage) {
         Button viewAllButton = new Button("瀏覽全部");
         viewAllButton.setStyle("-fx-font-size: 14px; -fx-background-color: #336699; -fx-text-fill: white;");
@@ -325,8 +359,6 @@ public class Analysis extends Application {
         fishButton.setStyle("-fx-font-size: 14px; -fx-background-color: #87CEFA; -fx-text-fill: white;");
         // 生鮮魚類按鈕事件處理
         fishButton.setOnAction(e -> handleFishEvent(selectedDate, chart));
-        
-        
 
         Button backButton = new Button("回管理後台");
         backButton.setStyle("-fx-font-size: 14px; -fx-background-color: #D8BFD8; -fx-text-fill: white;");
@@ -373,23 +405,34 @@ public class Analysis extends Application {
 
     @Override
     public void start(Stage stage) {
-
         // 獲取今天的日期
         String todayDate = getFormattedDate();
 
-        // 獲取今天的銷售數據
+        // 獲取今天的銷售資料
         Map<String, Integer> dailySalesData = getDailySalesDataFromDatabase();
 
-        // 創建PieChart的數據列表
+        // 將資料按數量從多到少排序，並只取前五名
+        List<Map.Entry<String, Integer>> sortedSalesData = dailySalesData.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+
+        // 將資料按數量從多到少排序，並只取後五名
+        List<Map.Entry<String, Integer>> bottomSalesData = dailySalesData.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .skip(Math.max(0, dailySalesData.size() - 5))
+                .collect(Collectors.toList());
+
+        // 創建PieChart的資料清單
         ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
-        for (Map.Entry<String, Integer> entry : dailySalesData.entrySet()) {
+        for (Map.Entry<String, Integer> entry : sortedSalesData) {
             PieChart.Data data = new PieChart.Data(entry.getKey() + ": " + entry.getValue(), entry.getValue());
             pieChartData.add(data);
         }
 
         // 創建PieChart
         final PieChart chart = new PieChart(pieChartData);
-        String initialTitle = todayDate + " 銷售分析"; // 设置标题为今天的日期
+        String initialTitle = todayDate + " 銷售分析"; // 設置標題為今天的日期
         chart.setTitle(initialTitle);
 
         // 將數量顯示在圖表上
@@ -403,10 +446,10 @@ public class Analysis extends Application {
         // 調用處理搜索事件的方法，並傳入預設日期選擇器和圖表
         handleSearchEvent(defaultDate, chart);
 
-        Text descriptionText = new Text("透過日期查找銷售情形：");
+        Text descriptionText = new Text("通過日期查找銷售情況：");
         descriptionText.setStyle("-fx-font-size: 14px;");
         // 創建篩選區塊
-        DatePicker filterField = new DatePicker(); // 使用 DatePicker 作为日期筛选器
+        DatePicker filterField = new DatePicker(); // 使用 DatePicker 作為日期篩選器
         filterField.setPromptText("選擇日期");
         filterField.setPrefWidth(100); // 設置日期選擇器的寬度
         filterField.setPrefHeight(30); // 設置日期選擇器的高度
@@ -421,48 +464,76 @@ public class Analysis extends Application {
         Button searchButton = new Button("搜尋");
         searchButton.setStyle("-fx-font-size: 14px; -fx-background-color: #5cb85c; -fx-text-fill: white;");
         // 在按鈕的事件處理常式中添加代碼以執行上述步驟
-        searchButton.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent e) {
-                handleSearchEvent(filterField, chart);
-            }
-        });
+        searchButton.setOnAction(e -> handleSearchEvent(filterField, chart));
 
         // 創建按鈕用於回到今天的日期
         Button todayButton = new Button("回到今天");
         todayButton.setStyle("-fx-font-size: 14px; -fx-background-color: #EAC100; -fx-text-fill: white;");
-        todayButton.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent e) {
-                // 获取今天的日期并更新图表显示
-                LocalDate today = LocalDate.now();
-                filterField.setValue(today);
-                handleSearchEvent(filterField, chart);
-            }
+        todayButton.setOnAction(e -> {
+            // 獲取今天的日期並更新圖表顯示
+            LocalDate today = LocalDate.now();
+            filterField.setValue(today);
+            handleSearchEvent(filterField, chart);
         });
 
-        // 將說明文本節點、日期選擇器和搜索按鈕放入水準箱子
+        // 將說明文本節點、日期選擇器和搜索按鈕放入水準盒子
         HBox filterBox = new HBox(10);
-
         filterBox.setAlignment(Pos.CENTER_LEFT);
         filterBox.setPadding(new Insets(10));
         filterBox.getChildren().addAll(descriptionText, filterField, searchButton, todayButton);
-        // 创建根容器
+
+        // 創建根容器
         VBox topBox = new VBox(10);
+        topBox.getChildren().addAll(buttonBox, new Separator(), filterBox); // 添加水平線
 
-        topBox.getChildren().addAll(buttonBox, new Separator(), filterBox); // 添加水平线
+        // 創建表格
+        TableView<Map.Entry<String, Integer>> topTableView = new TableView<>();
+        createSalesRankingTable(topTableView, sortedSalesData);
 
-        // 將PieChart添加到VBox中
-        VBox vbox = new VBox(chart);
+        TableView<Map.Entry<String, Integer>> bottomTableView = new TableView<>();
+        createSalesRankingTable(bottomTableView, bottomSalesData);
 
-        vbox.setSpacing(10);
-        vbox.setPadding(new Insets(10));
+        // 創建銷售排行榜標題
+        Label tableTitleF = new Label("銷售排行榜(前五名)");
+        tableTitleF.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        // 創建銷售排行榜標題
+        Label tableTitleE = new Label("銷售排行榜(後五名)");
+        tableTitleE.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        // 創建VBox將標題和表格放在一起
+        VBox topTableBox = new VBox(5);
+        topTableBox.getChildren().addAll(tableTitleF, topTableView);
+
+        VBox bottomTableBox = new VBox(5);
+        bottomTableBox.getChildren().addAll(tableTitleE, bottomTableView);
+
+        // 在前五名表格和後五名表格之間添加一些空隙
+        Region spacer = new Region();
+        spacer.setPrefHeight(20); // 設置空隙高度為20像素
+
+        // 創建HBox用於包含圓餅圖和表格
+        HBox contentBox = new HBox(10);
+        HBox.setHgrow(chart, Priority.ALWAYS);
+        HBox.setHgrow(topTableBox, Priority.NEVER);
+        HBox.setHgrow(bottomTableBox, Priority.NEVER);
+        chart.setMaxWidth(Double.MAX_VALUE); // 設置圖表寬度最大化
+        topTableBox.setMaxWidth(150); // 設置表格和標題的最大寬度
+        bottomTableBox.setMaxWidth(150); // 設置表格和標題的最大寬度
+
+        VBox tableContainer = new VBox(10);
+        tableContainer.getChildren().addAll(topTableBox, spacer, bottomTableBox);
+
+        contentBox.getChildren().addAll(chart, tableContainer);
+        contentBox.setPadding(new Insets(10));
 
         // 創建一個BorderPane作為根節點
         BorderPane root = new BorderPane();
-        root.setTop(topBox); // 将顶端的按钮和筛选区域放置在顶部
-        root.setCenter(vbox);
-        root.setPadding(new Insets(15)); // 设置边距
+        root.setTop(topBox); // 將頂端的按鈕和篩選區域放置在頂部
+        root.setCenter(contentBox); // 將圓餅圖和表格放置在中央
+        root.setPadding(new Insets(15)); // 設置邊距
 
-        //創建場景並顯示
+        // 創建場景並顯示
         scene = new Scene(root, 950, 550);
 
         root.getStylesheets().add("/css/bootstrap3.css");
